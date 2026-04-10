@@ -41,8 +41,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\ZabCompressionHelper\ZabCompressionHelper.vcxproj" />
-  </ItemGroup>
 </Project>
