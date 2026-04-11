@@ -27,6 +27,7 @@ public class CustomizeWindow : Window
     private readonly Config _config;
 
     private readonly FileDialogManager _fileDialogManager;
+    private readonly Dictionary<string, string> _groupNames = new();
 
     private object _statusLock = new();
     private readonly List<string> _validationErrors = new();
@@ -43,6 +44,7 @@ public class CustomizeWindow : Window
     private int _selectedSlotIndex = 0;
     private string _inputTextureFilename = "";
     private string _inputOptionName = "New Option";
+    private readonly HashSet<string> _selectedOutputGroups = new();
 
     public CustomizeWindow(string modDirectory, CustomizeDefinition definition, ITextureProvider textureProvider, DefinitionManager definitionManager, TextureCompressor textureCompressor, Config config)
         : base($"Customize {Path.GetFileName(modDirectory)}")
@@ -62,6 +64,8 @@ public class CustomizeWindow : Window
         {
             MinimumSize = new(800, 400),
         };
+
+        RefreshGroupNames();
     }
 
     private void OnDefinitionFilesChanged(IEnumerable<string> addedDefinitionFiles, IEnumerable<string> modifiedDefinitionFiles, IEnumerable<string> removedDefinitionFiles)
@@ -72,6 +76,7 @@ public class CustomizeWindow : Window
             {
                 _definition = newDefinition;
                 _ = RefreshStatus(_inputTextureFilename, _inputOptionName);
+                RefreshGroupNames();
             }
             else
             {
@@ -119,6 +124,8 @@ public class CustomizeWindow : Window
                 ImGui.TableSetupColumn("TexturePreview", ImGuiTableColumnFlags.WidthFixed, 250.0f * ImGuiHelpers.GlobalScale);
 
                 ImGui.TableNextColumn();
+
+                // Input properties
                 var itemWidth = ImGui.GetContentRegionAvail().X * 2.0f / 3.0f;
                 using (ImRaii.ItemWidth(itemWidth))
                 {
@@ -151,7 +158,35 @@ public class CustomizeWindow : Window
                     }
                 }
 
-                ImGuiHelpers.ScaledDummy(4.0f);
+                // Destination checkboxes
+                ImGui.Spacing();
+                ImGui.Text("Add to Groups:");
+                foreach (var destination in _definition.Slots[_selectedSlotIndex].Destinations)
+                {
+                    bool isChecked = _selectedOutputGroups.Contains(destination.GroupJsonFilename);
+
+                    string groupLabel = destination.GroupJsonFilename;
+                    if (_groupNames.TryGetValue(destination.GroupJsonFilename, out var groupName))
+                    {
+                        groupLabel = groupName;
+                    }
+                    if (ImGui.Checkbox(groupLabel, ref isChecked))
+                    {
+                        if (isChecked)
+                        {
+                            _selectedOutputGroups.Add(destination.GroupJsonFilename);
+                            _ = RefreshStatus(_inputTextureFilename, _inputOptionName);
+                        }
+                        else
+                        {
+                            _selectedOutputGroups.Remove(destination.GroupJsonFilename);
+                            _ = RefreshStatus(_inputTextureFilename, _inputOptionName);
+                        }
+                    }
+                }
+
+                // Error messages
+                ImGui.Spacing();
                 lock (_statusLock)
                 {
                     using (ImRaii.PushIndent(4.0f))
@@ -171,6 +206,7 @@ public class CustomizeWindow : Window
                     }
                 }
 
+                // Image preview
                 ImGui.TableNextColumn();
                 var width = ImGui.GetContentRegionAvail().X;
                 var filePreviewTexture = _textureProvider.GetFromFileAbsolute(_inputTextureFilename);
@@ -193,6 +229,7 @@ public class CustomizeWindow : Window
                 else
                 {
                     ImGui.AddRect(ImGui.GetWindowDrawList(), ImGui.GetCursorScreenPos(), ImGui.GetCursorScreenPos() + new Vector2(width, width), ImGui.ColorConvertFloat4ToU32(new Vector4(0.9f, 0.9f, 0.9f, 0.1f)));
+                    ImGuiHelpers.ScaledDummy(width);
                 }
             }
 
@@ -214,13 +251,34 @@ public class CustomizeWindow : Window
         _fileDialogManager.Draw();
     }
 
+    private void RefreshGroupNames()
+    {
+        _groupNames.Clear();
+        foreach (var groupName in PenumbraModUtils.GetGroups(ModDirectory))
+        {
+            _groupNames[groupName.jsonName] = groupName.groupName;
+        }
+    }
+
     // sets _validationErrors and _isReady
     private int _isRefreshing = 0;
     private Task RefreshStatus(string imageFilename, string optionName)
     {
         if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _definition.Slots.Count)
         {
+            // The selected slot index is not valid
             _selectedSlotIndex = _definition.Slots.Count > 0 ? 0 : -1;
+            lock (_statusLock)
+            {
+                _validationErrors.Clear();
+                _isReady = false;
+            }
+            return Task.CompletedTask;
+        }
+
+        if (!_definition.Slots[_selectedSlotIndex].Destinations.Any(destination => _selectedOutputGroups.Contains(destination.GroupJsonFilename)))
+        {
+            // None of the destinations are selected
             lock (_statusLock)
             {
                 _validationErrors.Clear();
@@ -338,11 +396,14 @@ public class CustomizeWindow : Window
                     // Add the options to the Penumbra mod group JSONs
                     foreach (var destination in slot.Destinations)
                     {
-                        _addStatus = $"Adding option to ${Path.GetFileNameWithoutExtension(destination.GroupJsonFilename)}";
-                        await PenumbraModUtils.AddGroupOptionAsync(Path.Combine(ModDirectory, destination.GroupJsonFilename), inputOptionName, new()
+                        if (_selectedOutputGroups.Contains(destination.GroupJsonFilename))
                         {
-                            { destination.GamePath, Path.Combine(slot.OutputDirectory, outputFilename) },
-                        });
+                            _addStatus = $"Adding option to ${Path.GetFileNameWithoutExtension(destination.GroupJsonFilename)}";
+                            await PenumbraModUtils.AddGroupOptionAsync(Path.Combine(ModDirectory, destination.GroupJsonFilename), inputOptionName, new()
+                            {
+                                { destination.GamePath, Path.Combine(slot.OutputDirectory, outputFilename) },
+                            });
+                        }
                     }
 
                     // Let Penumbra know to reload the mod

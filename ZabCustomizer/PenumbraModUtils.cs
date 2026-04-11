@@ -37,4 +37,29 @@ public static class PenumbraModUtils
             }
         }
     }
+
+    public static IEnumerable<(string jsonName, string groupName)> GetGroups(string modDirectory)
+    {
+        foreach (var groupJson in Directory.GetFiles(modDirectory, "group_*_*.json"))
+        {
+            string? name = null;
+            try
+            {
+                using (var stream = new FileStream(groupJson, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var groupJsonNode = JsonNode.Parse(stream);
+                    if (groupJsonNode != null && groupJsonNode.GetValueKind() == JsonValueKind.Object && groupJsonNode["Name"] is JsonValue nameValue && nameValue.GetValueKind() == JsonValueKind.String)
+                    {
+                        name = nameValue.GetValue<string>();
+                    }
+                }
+            }
+            catch (Exception)
+            { }
+            if (name != null)
+            {
+                yield return (Path.GetFileName(groupJson), name);
+            }
+        }
+    }
 }
