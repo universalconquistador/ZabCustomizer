@@ -63,4 +63,5 @@ jobs:
         files: |
           ZabCustomizer/bin/x64/Release/ZabCustomizer/latest.zip
           icon.png
+          screenshot.png
           repo.json
