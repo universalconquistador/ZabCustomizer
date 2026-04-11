@@ -15,8 +15,9 @@
     <MinimumDalamudVersion>14.0.0</MinimumDalamudVersion>
     <Punchline>Zab's mods, just how you like them.</Punchline>
     <Description>
-      Customize Zab's mods with this easy-to-use plugin!
-      Use the Customize button in Penumbra on Zab's supported mods to get started.
+      Customize enabled mods with this easy-to-use plugin!
+      Use the Customize button in Penumbra on any Customizer supported mods to get started.
+      Works on mods with the customizer enabled including Zab & Tsch's Dote Cards, EikonPhone Pro, Zab & Fel's ADS and more!
     </Description>
     <RepoUrl>https://github.com/Zabigail/ZabCustomizer</RepoUrl>
     <Tags>objects;models;gpose;vfx</Tags>
