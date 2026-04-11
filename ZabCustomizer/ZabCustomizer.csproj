@@ -1,4 +1,4 @@
-<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
   <PropertyGroup>
     <Version>1.0.1</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -10,7 +10,7 @@
     <Nullable>enable</Nullable>
 
     <!-- Dalamud Packager properties for the plugin manifest -->
-    <Author>UniversalConquistador</Author>
+    <Author>Zabigail, UniversalConquistador</Author>
     <Name>Zab's Customizer</Name>
     <MinimumDalamudVersion>14.0.0</MinimumDalamudVersion>
     <Punchline>Zab's mods, just how you like them.</Punchline>
