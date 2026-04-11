@@ -27,7 +27,7 @@
     <LoadSync>false</LoadSync>
     <CanUnloadAsync>true</CanUnloadAsync>
     <LoadPriority>1</LoadPriority>
-    <ImageUrls>https://github.com/Zabigail/ZabCustomizer/releases/latest/download/screenshot.png</ImageUrls>
+    <ImageUrls></ImageUrls>
     <IconUrl>https://github.com/Zabigail/ZabCustomizer/releases/latest/download/icon.png</IconUrl>
     <Changelog></Changelog>
   </PropertyGroup>
