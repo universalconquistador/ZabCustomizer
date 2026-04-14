@@ -66,7 +66,6 @@ public class DefinitionManager : IDisposable
         _fileSystemWatcher.Created += this.OnDefinitionFileCreated;
         _fileSystemWatcher.Deleted += this.OnDefinitionFileDeleted;
         _fileSystemWatcher.Renamed += this.OnDefinitionFileRenamed;
-        _fileSystemWatcher.Filter = CustomizeDefinition.Filename;
         _fileSystemWatcher.IncludeSubdirectories = true;
     }
 
@@ -75,13 +74,14 @@ public class DefinitionManager : IDisposable
         IEnumerable<string>? addedDefinitions = null;
         IEnumerable<string>? removedDefinitions = null;
 
-        if (e.OldName != null && e.OldName == CustomizeDefinition.Filename && Path.GetDirectoryName(e.OldFullPath) is string oldDirectory)
+        _log.Debug("RENAME: {old} -> {new}", e.OldFullPath, e.FullPath);
+
+        if (e.OldName != null && Path.GetFileName(e.Name) == CustomizeDefinition.Filename && Path.GetDirectoryName(e.OldFullPath) is string oldDirectory && _definitions.TryRemove(oldDirectory, out _))
         {
             removedDefinitions = new string[] { oldDirectory };
-            _definitions.TryRemove(oldDirectory, out _);
         }
 
-        if (e.Name != null && e.Name == CustomizeDefinition.Filename && Path.GetDirectoryName(e.FullPath) is string newDirectory && TryLoadDefinition(e.FullPath, out var definition))
+        if (e.Name != null && Path.GetFileName(e.Name) == CustomizeDefinition.Filename && Path.GetDirectoryName(e.FullPath) is string newDirectory && TryLoadDefinition(e.FullPath, out var definition))
         {
             addedDefinitions = new string[] { newDirectory };
             _definitions[newDirectory] = definition;
@@ -89,26 +89,38 @@ public class DefinitionManager : IDisposable
 
         if (addedDefinitions != null || removedDefinitions != null)
         {
+            // .json was renamed
             DefinitionFilesChanged?.Invoke(addedDefinitions ?? Enumerable.Empty<string>(), Enumerable.Empty<string>(), removedDefinitions ?? Enumerable.Empty<string>());
+        }
+        else if (_definitions.TryRemove(e.OldFullPath, out var oldDefinition))
+        {
+            // folder itself was renamed
+            _definitions[e.FullPath] = oldDefinition;
+            DefinitionFilesChanged?.Invoke([e.FullPath], Enumerable.Empty<string>(), [e.OldFullPath]);
         }
     }
 
     private void OnDefinitionFileDeleted(object sender, FileSystemEventArgs e)
     {
-        var directory = Path.GetDirectoryName(e.FullPath);
-        if (directory != null)
+        if (Path.GetFileName(e.Name) == CustomizeDefinition.Filename)
         {
-            if (_definitions.TryRemove(directory, out _))
+            _log.Debug("DELETED: {path}", e.FullPath);
+            var directory = Path.GetDirectoryName(e.FullPath);
+            if (directory != null)
             {
-                DefinitionFilesChanged?.Invoke(Enumerable.Empty<string>(), Enumerable.Empty<string>(), new string[] { directory });
+                if (_definitions.TryRemove(directory, out _))
+                {
+                    DefinitionFilesChanged?.Invoke(Enumerable.Empty<string>(), Enumerable.Empty<string>(), new string[] { directory });
+                }
             }
         }
     }
 
     private void OnDefinitionFileCreated(object sender, FileSystemEventArgs e)
     {
-        if (Path.GetDirectoryName(e.FullPath) is string newDirectory && TryLoadDefinition(e.FullPath, out var definition))
+        if (Path.GetFileName(e.Name) == CustomizeDefinition.Filename && Path.GetDirectoryName(e.FullPath) is string newDirectory && TryLoadDefinition(e.FullPath, out var definition))
         {
+            _log.Debug("NEW: {path}", e.FullPath);
             _definitions[newDirectory] = definition;
             DefinitionFilesChanged?.Invoke(new string[] { newDirectory }, Enumerable.Empty<string>(), Enumerable.Empty<string>());
         }
@@ -116,8 +128,9 @@ public class DefinitionManager : IDisposable
 
     private void OnDefinitionFileChanged(object sender, FileSystemEventArgs e)
     {
-        if (Path.GetDirectoryName(e.FullPath) is string directory)
+        if (Path.GetFileName(e.Name) == CustomizeDefinition.Filename && Path.GetDirectoryName(e.FullPath) is string directory)
         {
+            _log.Debug("CHANGE: {path}", e.FullPath);
             if (TryLoadDefinition(e.FullPath, out var definition))
             {
                 bool updated = false;
