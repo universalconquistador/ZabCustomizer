@@ -24,7 +24,7 @@ jobs:
         dotnet-version: 10.0.x
 
     - name: Download Dalamud
-      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/latest.zip"
+      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/stg/latest.zip"
 
     - name: Extract Dalamud
       run: unzip latest.zip -d /home/runner/dalamud-distrib
